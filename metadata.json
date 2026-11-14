@@ -1,0 +1,6 @@
+{
+  "name": "VINcheck",
+  "description": "Expediente Clínico Digital - Sistema Digital de Diagnóstico Automotriz",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

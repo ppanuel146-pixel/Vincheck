@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="1.0"
+        android:scaleY="1.0"
+        android:pivotX="54"
+        android:pivotY="54">
+        <!-- Shield background border -->
+        <path
+            android:fillColor="#1E3A8A"
+            android:strokeColor="#2563EB"
+            android:strokeWidth="2.5"
+            android:pathData="M54,22 L76,32 C76,56 65,74 54,82 C43,74 32,56 32,32 Z" />
+        <!-- Vehicle Silhouette -->
+        <path
+            android:fillColor="#F59E0B"
+            android:pathData="M43,45 L47,38 L61,38 L65,45 L69,45 C70.5,45 71,46.2 71,47.5 L71,55 C71,56 70,57 69,57 L68,57 C68,59 66.5,60.5 64.5,60.5 C62.5,60.5 61,59 61,57 L47,57 C47,59 45.5,60.5 43.5,60.5 C41.5,60.5 40,59 40,57 L39,57 C38,57 37,56 37,55 L37,47.5 C37,46.2 37.5,45 39,45 Z M45,55 C46,55 46.8,54.2 46.8,53.2 C46.8,52.2 46,51.4 45,51.4 C44,51.4 43.2,52.2 43.2,53.2 C43.2,54.2 44,55 45,55 Z M63,55 C64,55 64.8,54.2 64.8,53.2 C64.8,52.2 64,51.4 63,51.4 C62,51.4 61.2,52.2 61.2,53.2 C61.2,54.2 62,55 63,55 Z M45,46 L63,46 L60,40 L48,40 Z" />
+        <!-- Clinical pulse checkmark -->
+        <path
+            android:strokeColor="#10B981"
+            android:strokeWidth="3.2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M42,66 L49,73 L66,56" />
+    </group>
+</vector>

@@ -1,0 +1,210 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isWorkshopUser() {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'taller';
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.displayName is string && data.displayName.size() <= 150 &&
+             data.role in ['propietario', 'taller'] &&
+             (!('workshopName' in data) || (data.workshopName is string && data.workshopName.size() <= 150)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidVehicle(data) {
+      return data.vin is string && data.vin.size() == 17 &&
+             data.plate is string && data.plate.size() <= 10 &&
+             data.brand is string && data.brand.size() <= 50 &&
+             data.model is string && data.model.size() <= 50 &&
+             data.year is int && data.year >= 1900 && data.year <= 2100 &&
+             data.mileage is int && data.mileage >= 0 &&
+             data.ownerId is string && data.ownerId.size() <= 128 &&
+             (!('servicingWorkshopIds' in data) || (data.servicingWorkshopIds is list && data.servicingWorkshopIds.size() <= 50)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidIntervention(data) {
+      return data.vin is string && data.vin.size() == 17 &&
+             data.plate is string && data.plate.size() <= 10 &&
+             data.workshopId is string && data.workshopId.size() <= 128 &&
+             data.workshopName is string && data.workshopName.size() <= 150 &&
+             data.ownerId is string && data.ownerId.size() <= 128 &&
+             data.date is string && data.date.size() <= 20 &&
+             data.mileage is int && data.mileage >= 0 &&
+             data.workDone is string && data.workDone.size() <= 2000 &&
+             (!('partsUsed' in data) || (data.partsUsed is string && data.partsUsed.size() <= 1000)) &&
+             (!('photoBase64' in data) || (data.photoBase64 is string && data.photoBase64.size() <= 800000)) &&
+             (!('photoGps' in data) || (data.photoGps is string && data.photoGps.size() <= 200)) &&
+             (!('photoTimestamp' in data) || (data.photoTimestamp is string && data.photoTimestamp.size() <= 100)) &&
+             data.hasPhoto is bool &&
+             (!('signatureBase64' in data) || (data.signatureBase64 is string && data.signatureBase64.size() <= 200000)) &&
+             data.hasSignature is bool &&
+             (!('signatureDisclaimer' in data) || (data.signatureDisclaimer is string && data.signatureDisclaimer.size() <= 500)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidInventoryItem(data) {
+      return data.workshopId is string && data.workshopId.size() <= 128 &&
+             data.partNumber is string && data.partNumber.size() <= 50 &&
+             data.name is string && data.name.size() <= 150 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.stock is int && data.stock >= 0 &&
+             data.minStock is int && data.minStock >= 0 &&
+             data.unitPrice is int && data.unitPrice >= 0 &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    // USER PROFILES
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'email', 'displayName', 'role', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'email', 'displayName', 'role', 'workshopName', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'workshopName', 'role', 'updatedAt']);
+
+      allow delete: if false;
+    }
+
+    // VEHICLES (Keyed by 17-char VIN)
+    match /vehicles/{vehicleId} {
+      allow get: if isSignedIn() &&
+                    isValidId(vehicleId) &&
+                    (isWorkshopUser() ||
+                     (resource != null && (
+                       resource.data.ownerId == request.auth.uid ||
+                       (('servicingWorkshopIds' in resource.data) && (request.auth.uid in resource.data.servicingWorkshopIds))
+                     )));
+
+      allow list: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid ||
+        (('servicingWorkshopIds' in resource.data) && (request.auth.uid in resource.data.servicingWorkshopIds))
+      );
+
+      allow create: if isSignedIn() &&
+                       isValidId(vehicleId) &&
+                       incoming().ownerId == request.auth.uid &&
+                       incoming().vin == vehicleId &&
+                       incoming().keys().hasAll(['vin', 'plate', 'brand', 'model', 'year', 'mileage', 'ownerId', 'createdAt']) &&
+                       incoming().keys().hasOnly(['vin', 'plate', 'brand', 'model', 'year', 'mileage', 'ownerId', 'servicingWorkshopIds', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidVehicle(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(vehicleId) &&
+                       (existing().ownerId == request.auth.uid ||
+                        (isWorkshopUser() && ('servicingWorkshopIds' in incoming()) && (request.auth.uid in incoming().servicingWorkshopIds))) &&
+                       incoming().vin == existing().vin &&
+                       incoming().ownerId == existing().ownerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidVehicle(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['mileage', 'servicingWorkshopIds', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(vehicleId) && existing().ownerId == request.auth.uid;
+    }
+
+    // INTERVENTIONS (CLINICAL SERVICE RECORDS)
+    match /interventions/{interventionId} {
+      allow get: if isSignedIn() && isValidId(interventionId) && (
+        resource.data.workshopId == request.auth.uid ||
+        resource.data.ownerId == request.auth.uid
+      );
+      allow list: if isSignedIn() && (
+        resource.data.workshopId == request.auth.uid ||
+        resource.data.ownerId == request.auth.uid
+      );
+
+      allow create: if isSignedIn() &&
+                       isValidId(interventionId) &&
+                       incoming().workshopId == request.auth.uid &&
+                       incoming().keys().hasAll(['vin', 'plate', 'workshopId', 'workshopName', 'ownerId', 'date', 'mileage', 'workDone', 'hasPhoto', 'hasSignature', 'createdAt']) &&
+                       incoming().keys().hasOnly(['vin', 'plate', 'workshopId', 'workshopName', 'ownerId', 'date', 'mileage', 'workDone', 'partsUsed', 'photoBase64', 'photoGps', 'photoTimestamp', 'hasPhoto', 'signatureBase64', 'hasSignature', 'signatureDisclaimer', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidIntervention(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(interventionId) &&
+                       (existing().workshopId == request.auth.uid || existing().ownerId == request.auth.uid) &&
+                       incoming().workshopId == existing().workshopId &&
+                       incoming().vin == existing().vin &&
+                       incoming().ownerId == existing().ownerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidIntervention(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'photoBase64', 'photoGps', 'photoTimestamp', 'hasPhoto',
+                         'signatureBase64', 'hasSignature', 'signatureDisclaimer',
+                         'workDone', 'partsUsed', 'mileage', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(interventionId) && existing().workshopId == request.auth.uid;
+    }
+
+    // WORKSHOP INVENTORY
+    match /inventory/{itemId} {
+      allow get: if isSignedIn() && isValidId(itemId) && resource.data.workshopId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.workshopId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(itemId) &&
+                       incoming().workshopId == request.auth.uid &&
+                       incoming().keys().hasAll(['workshopId', 'partNumber', 'name', 'category', 'stock', 'minStock', 'unitPrice', 'createdAt']) &&
+                       incoming().keys().hasOnly(['workshopId', 'partNumber', 'name', 'category', 'stock', 'minStock', 'unitPrice', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidInventoryItem(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(itemId) &&
+                       existing().workshopId == request.auth.uid &&
+                       incoming().workshopId == existing().workshopId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidInventoryItem(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['partNumber', 'name', 'category', 'stock', 'minStock', 'unitPrice', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(itemId) && existing().workshopId == request.auth.uid;
+    }
+  }
+}

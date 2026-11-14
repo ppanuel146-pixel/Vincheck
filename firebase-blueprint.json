@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role (propietario or taller)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Full name or workshop contact" },
+        "role": { "type": "string", "enum": ["propietario", "taller"], "description": "System role" },
+        "workshopName": { "type": "string", "description": "Workshop legal/display name" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "email", "displayName", "role", "createdAt"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Automotive record tracked by VIN and plate",
+      "type": "object",
+      "properties": {
+        "vin": { "type": "string", "description": "17-character VIN identifier" },
+        "plate": { "type": "string", "description": "Chilean license plate (e.g. BB-BB-10)" },
+        "brand": { "type": "string", "description": "Vehicle brand (e.g. Toyota, Hyundai)" },
+        "model": { "type": "string", "description": "Vehicle model" },
+        "year": { "type": "integer", "description": "Manufacturing year" },
+        "mileage": { "type": "integer", "description": "Current odometer mileage in km" },
+        "ownerId": { "type": "string", "description": "UID of the registered owner" },
+        "servicingWorkshopIds": { "type": "array", "description": "Workshops that serviced this vehicle" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["vin", "plate", "brand", "model", "year", "mileage", "ownerId", "createdAt"]
+    },
+    "Intervention": {
+      "title": "Intervention",
+      "description": "Clinical maintenance / mechanical intervention record",
+      "type": "object",
+      "properties": {
+        "vin": { "type": "string", "description": "Target vehicle VIN" },
+        "plate": { "type": "string", "description": "Target vehicle license plate" },
+        "workshopId": { "type": "string", "description": "UID of servicing workshop" },
+        "workshopName": { "type": "string", "description": "Name of servicing workshop" },
+        "ownerId": { "type": "string", "description": "UID of vehicle owner" },
+        "date": { "type": "string", "description": "Intervention date (YYYY-MM-DD)" },
+        "mileage": { "type": "integer", "description": "Odometer at time of service" },
+        "workDone": { "type": "string", "description": "Technical description of work performed" },
+        "partsUsed": { "type": "string", "description": "Replacement parts and materials used" },
+        "photoBase64": { "type": "string", "description": "Watermarked photographic evidence JPEG base64" },
+        "photoGps": { "type": "string", "description": "GPS coordinates or 'Ubicación GPS: No disponible'" },
+        "photoTimestamp": { "type": "string", "description": "Timestamp on watermark" },
+        "hasPhoto": { "type": "boolean", "description": "Flag indicating photo evidence is attached" },
+        "signatureBase64": { "type": "string", "description": "Digital touch stroke signature base64" },
+        "hasSignature": { "type": "boolean", "description": "Flag indicating digital signature is recorded" },
+        "signatureDisclaimer": { "type": "string", "description": "Academic disclaimer for captured stroke" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["vin", "plate", "workshopId", "workshopName", "ownerId", "date", "mileage", "workDone", "hasPhoto", "hasSignature", "createdAt"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Workshop spare parts inventory item",
+      "type": "object",
+      "properties": {
+        "workshopId": { "type": "string", "description": "UID of the workshop that owns this item" },
+        "partNumber": { "type": "string", "description": "Spare part code / SKU" },
+        "name": { "type": "string", "description": "Spare part title / name" },
+        "category": { "type": "string", "description": "Component category" },
+        "stock": { "type": "integer", "description": "Current units in stock" },
+        "minStock": { "type": "integer", "description": "Minimum alert threshold" },
+        "unitPrice": { "type": "integer", "description": "Unit price in CLP" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["workshopId", "partNumber", "name", "category", "stock", "minStock", "unitPrice", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles with assigned role"
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Registered automotive vehicles"
+    },
+    "/interventions/{interventionId}": {
+      "schema": "Intervention",
+      "description": "Automotive service interventions with watermarked evidence and digital signature"
+    },
+    "/inventory/{itemId}": {
+      "schema": "InventoryItem",
+      "description": "Workshop parts inventory"
+    }
+  }
+}
